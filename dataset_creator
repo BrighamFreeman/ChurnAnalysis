@@ -1,0 +1,438 @@
+# ========= IMPORT LIBRARIES ==========
+
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+import numpy as np
+import pandas as pd
+import random
+import warnings
+from scipy.fftpack import fft, fftfreq
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.arima.model import ARIMA
+import warnings
+
+# ============ DEFINE ARIMA FUNCTION ============
+def ARIMAPredict(df, order):
+  
+  from statsmodels.tsa.arima.model import ARIMA
+  import warnings
+
+  # Suppress warnings
+  warnings.filterwarnings("ignore")
+
+  model = ARIMA(df, order=order)  # Adjust order as needed
+  model_fit = model.fit()
+
+      # Forecast the next value
+  forecast = model_fit.forecast(steps=1)
+  print(forecast)
+  # Print the results
+  return forecast
+
+#========= IMPORT REAL CUSTOMER DATA ==================
+
+from google.colab import files
+
+# Prompt user to upload files
+print("Please select the file(s) to upload.")
+uploaded2 = files.upload()
+
+# Display the uploaded file names
+for filename2 in uploaded2.keys():
+    print(f"Uploaded file: {filename2}")
+
+# Optional: Save the uploaded files locally in Colab
+for filename2, content in uploaded2.items():
+    with open(filename2, 'wb') as f:
+        f.write(content)
+        print(f"File saved locally as: {filename2}")
+
+
+import pandas as pd
+import numpy as np
+import random
+
+# Load and preprocess the data
+df = pd.read_csv(filename2)
+df.fillna(0, inplace=True)
+df = df[1:]
+
+# ============= DATA CREATION FUNCTION ==================
+
+def generate_augmented(churned):
+  rand = random.randint(0,len(df)-1)
+  row = df.iloc[rand][2:]
+  row.index = pd.to_datetime(row.index)
+  weekly_sales = row.resample('W').sum()
+  weekly_sales = (weekly_sales - weekly_sales.min()) / (weekly_sales.max() - weekly_sales.min()) * 100
+  weeks = 52  # 12 months of weekly data
+  spending = np.zeros(52)
+  start_spend = np.random.uniform(0, 100)
+
+
+  if churned:
+      # Simulate spending decrease over time, leading to 0
+      drop_point = np.random.randint(15, 40)  # Random point where spending drops
+      decay = np.random.uniform(0.6, 0.95)  # How fast spending drops
+      for i in range(drop_point):
+        ggg = random.random() < 0.3
+        if ggg:
+          spending[i] = 0
+        else:
+          spending[i] = weekly_sales.iloc[i] + np.random.normal(0, start_spend * 0.1)
+
+      for i in range(drop_point, weeks):
+        #introduce 0 sell weeks
+        no_sell = random.random() < 0.6
+        if no_sell:
+          spending[i] = 0
+        else:
+          no_sell = random.random() < 0.77
+          if no_sell:
+            if i < len(weekly_sales):
+                spending[i] = weekly_sales.iloc[i]
+            else:
+                spending[i] = 0  # Handle missing weeks gracefully
+
+          else:
+            try:
+              spending[i] = spending[i-1] * (decay ** (i * 2))
+            except:
+              spending[i] = start_spend * decay ** (i * 2)
+
+  else:
+    for i in range(52):
+
+      random_drop = random.random() < 0.05
+      if random_drop:
+        spending[i] = 0
+      else:
+        spending[i] = row.iloc[i] + np.random.normal(0, start_spend * 0.1)
+
+  return spending
+
+
+def untouched_data(churned):
+  rand = random.randint(0,len(df)-1)
+  row = df.iloc[rand][2:]
+  row.index = pd.to_datetime(row.index)
+  weeks = 52
+  weekly_sales = row.resample('W').sum()
+  weekly_sales = (weekly_sales - weekly_sales.min()) / (weekly_sales.max() - weekly_sales.min()) * 100
+  spending = np.zeros(weeks)
+  for i in range(weeks):
+    spending[i] = weekly_sales.iloc[i]
+
+  return spending
+
+
+def low_spend_customer(churned):
+  weeks = 52
+  spending = np.zeros(weeks)
+  for i in range(weeks):
+    if churned:
+      spend = random.random() < 0.2
+      if spend:
+        spending[i] = random.randint(10,1000)
+    else:
+      spend = random.random() < 0.5
+      if spend:
+        spending[i] = random.randint(10,1000)
+
+  return spending
+
+
+
+def generate_churn(churned):
+    weeks = 52  # 12 months of weekly data
+    spending = np.zeros(weeks)
+
+    if churned:
+        # Simulate spending decrease over time, leading to 0
+        start_spend = np.random.uniform(1, 100)
+        drop_point = np.random.randint(25, 40)  # Random point where spending drops
+        decay = np.random.uniform(0.4, 0.95)  # How fast spending drops
+        for i in range(drop_point):
+            spending[i] = start_spend * (decay ** i)
+        for i in range(drop_point, weeks):
+            spending[i] = 0  # No purchases after drop
+    else:
+        # Regular spending pattern with some fluctuations
+        avg_spend = np.random.uniform(1, 100)
+        for i in range(weeks):
+          """ Implement random slowdowns """
+          if random.random() < 0.25:
+            spending[i] = 0
+          else:
+            if random.random() < 0.2:
+              decay = np.random.uniform(0.4, 0.95)
+              spending[i] = max(0, avg_spend + np.random.normal(0, avg_spend * 0.2) - decay)
+            else:
+              spending[i] = max(0, avg_spend + np.random.normal(0, avg_spend * 0.2))  # Add noise
+
+    return spending
+
+
+def generate_at_risk(churned):
+    weeks = 52  # 12 months of weekly data
+    spending = np.zeros(weeks)
+
+    if churned:
+        # Simulate spending decrease over time, leading to 0
+        start_spend = np.random.uniform(100, 15000)
+        drop_point = np.random.randint(25, 40)  # Random point where spending drops
+        decay = np.random.uniform(0.6, 0.95)  # How fast spending drops
+        for i in range(drop_point):
+          random_slowdown = random.random() < 0.33
+          if random_slowdown:
+            spending[i] = 0
+            #50% chance to set previous week to 0
+            if i > 1:
+              jit = random.random() < 0.5
+              if jit:
+                spending[i-1] = 0
+          else:
+            spending[i] = start_spend * (decay ** i)
+
+        for i in range(drop_point, weeks):
+          #introduce 0 sell weeks
+          no_sell = random.random() < 0.70
+          if no_sell:
+            spending[i] = 0
+          else:
+            no_sell = random.random() < 0.77
+            if no_sell:
+              spending[i] = start_spend * (decay ** (i * 1.4))
+            else:
+              try:
+                spending[i] = spending[i-1] * (decay ** (i * 2))
+              except:
+                spending[i] = start_spend * decay ** (i * 2)
+
+    else:
+        # Regular spending pattern with some fluctuations
+        avg_spend = np.random.uniform(1, 100)
+        for i in range(weeks):
+            spending[i] = max(0, avg_spend + np.random.normal(0, avg_spend * 0.1))  # Add noise
+
+    return spending
+
+
+import numpy as np
+import pandas as pd
+import random
+
+# Set random seed for reproducibility
+np.random.seed(42)
+
+# Number of customers
+n_customers = 100
+
+# Generate random customer IDs
+customer_ids = [f"CUST_{i}" for i in range(n_customers)]
+
+warnings.filterwarnings('ignore')
+
+#generate synthetic dataset
+data = []
+
+for customer in customer_ids:
+  print(f"Generating {customer}")
+  #set churn_state to true 33% of the time
+  churned = random.random() < 0.33
+  generator_seed = random.random()
+  if generator_seed < 0.2: # 30% chance to use real customer data
+    churned = False
+    #set flag to false, since customer is very likely not going to be at risk
+    c = untouched_data(churned)
+  else:
+    if generator_seed < 0.75:
+      c = low_spend_customer(churned)
+    else:
+      if generator_seed < 0.85: #25% chance to use augmented customer data
+        c = generate_augmented(churned)
+      else:
+        if generator_seed < 0.95: #45% chance to create synthetic at risk data
+          c = generate_at_risk(churned)
+        else:
+          c = generate_churn(churned) #10% chance to create synthetic churn data
+
+  last_purchase_week = np.argmax(c[::-1] > 0)
+  total_spend = np.sum(c)
+  average_monthly_spend = total_spend / 12
+  spending_trend = np.mean(c[-12:]) - np.mean(c[:12])  # First quarter vs last quarter spending
+
+  total_0_weeks = 0
+  for i in range(len(c)):
+    if c[i] == 0:
+      total_0_weeks += 1
+
+  weeks = []
+  for i in range(len(c) - 3):
+      ind = i + 3
+      d = c[ind]  # True value for next week
+      try:
+          # Fit ARIMA model to predict the next value (week)
+          model = ARIMA(c[max(0, ind-12):ind], order=(4, 0, 1))
+          fitted_model = model.fit()
+          ARIMA_pred = fitted_model.forecast(steps=1)[0]  # Forecast the next value (next week)
+      except:
+          ARIMA_pred = 1  # Default value if ARIMA fails (you may adjust this)
+
+      try:
+          # Check if the true value is 30% outside the predicted value
+          if ARIMA_pred != 0 and (d < ARIMA_pred * 0.3):
+              weeks.append(1)  # Mark as abnormal week
+          else:
+              weeks.append(0)  # Normal week
+      except:
+          weeks.append(0)  # Handle any errors gracefully
+
+    # Calculate the total number of abnormal weeks
+  total_abnormal_weeks = sum(weeks)
+
+  """ Fourier Analysis """
+
+  N = len(c)
+
+  # Number of weeks in each quarter (since we're dealing with 52 weeks of data, each quarter is 13 weeks)
+  quarter_length = 13
+
+  # Initialize list to store peak amplitudes for each quarter
+  peak_amplitudes = []
+  peak_frequencies = []
+
+  for i in range(4):
+      # Define the start and end of each quarter
+      start_idx = i * quarter_length
+      end_idx = start_idx + quarter_length
+
+      # Slice the data to get the current quarter
+      quarter_data = c[start_idx:end_idx]
+
+      # Perform Fourier Transform on the current quarter's data
+      fourier_y = fft(quarter_data)
+      fourier_x = fftfreq(len(quarter_data), 1.0)[:len(quarter_data) // 2]  # Frequency axis for this quarter
+
+      # Calculate the amplitudes and peak frequency for this quarter
+      amplitudes = 2.0 / len(quarter_data) * np.abs(fourier_y[:len(quarter_data) // 2])
+      peak_freq = fourier_x[np.argmax(amplitudes)]  # Peak frequency
+      peak_amplitude = np.max(amplitudes)  # Peak amplitude
+
+      # Store the peak amplitude for this quarter
+      peak_amplitudes.append(peak_amplitude)
+      peak_frequencies.append(peak_freq)
+
+  # Now, peak_amplitudes contains the peak amplitude for each of the four quarters
+
+  #peak_amplitudes = [entry / total_spend for entry in peak_amplitudes]
+  q1_f, q2_f, q3_f, q4_f = peak_amplitudes
+  q1_pf, q2_pf, q3_pf, q4_pf = peak_frequencies
+
+  try:
+
+    net_fourier_diff = (q4_f - q1_f) / np.mean(peak_amplitudes)
+
+    net_freq_diff = (q4_pf - q1_pf) / np.mean(peak_amplitudes)
+
+  except:
+    net_fourier_diff = 0
+    net_freq_diff = 0
+
+  avg_fourier_diff = q4_f - np.mean(peak_amplitudes)
+
+  avg_freq_diff = q4_pf - np.mean(peak_frequencies)
+
+  """ develop tensorflow flag system """
+
+  from tensorflow.keras.layers import Dense, LSTM
+  from tensorflow.keras.models import Sequential
+
+  window_size = 13  # Use the previous quarter (13 weeks) as the input window
+
+  X = []
+  y = []
+
+  # Create sliding window features
+  for i in range(window_size, len(c)):
+      X.append(c[i - window_size:i])  # Last quarter's data
+      y.append(c[i])  # Target is this week's sales
+
+  X = np.array(X)
+  y = np.array(y)
+
+  # Manual time-based train-test split (75% train, 25% test)
+  split_index = int(len(X) * 0.75)
+
+  X_train, X_test = X[:split_index], X[split_index:]
+  y_train, y_test = y[:split_index], y[split_index:]
+
+  # Print shapes to verify
+  """
+  print("X_train shape:", X_train.shape)
+  print("y_train shape:", y_train.shape)
+  print("X_test shape:", X_test.shape)
+  print("y_test shape:", y_test.shape)
+
+  """
+  from sklearn.preprocessing import MinMaxScaler
+
+  scaler = MinMaxScaler(feature_range=(0, 1))
+
+  # Fit the scaler to your training data and transform it
+  X_train_scaled = scaler.fit_transform(X_train)
+
+  # Apply the same transformation to your test data
+  X_test_scaled = scaler.transform(X_test)
+
+  # Check the results (scaled data between 0 and 1)
+  print(X_train_scaled)
+  print(X_test_scaled)
+
+
+  # Build a simple LSTM model for financial prediction
+  model = Sequential([
+    Dense(64, activation='relu', input_dim=X_train_scaled.shape[1]),  # Input layer
+    Dense(32, activation='relu'),  # Hidden layer
+    Dense(1)  # Output layer (1 value: predicted weekly sales)
+  ])
+
+  model.compile(optimizer='adam', loss='mean_squared_error')
+
+  # Train the model
+  model.fit(X_train_scaled, y_train, epochs=35, batch_size=32)
+  loss = model.evaluate(X_test, y_test)
+
+  tensorflow_flag = (loss < 1)
+
+  low_spending = (total_abnormal_weeks > 13)
+
+  #manually set churn status if customer meets certain requirements
+
+  if total_0_weeks > 36:
+    churned = True
+  if q4_f == 0:
+    churned = True
+
+  if net_fourier_diff < -1:
+    churned = True
+
+  print(churned)
+
+  data.append([customer, total_spend, last_purchase_week, total_0_weeks,
+               average_monthly_spend, spending_trend, total_abnormal_weeks,
+              q1_f, q4_f, net_fourier_diff, avg_fourier_diff,
+               loss, tensorflow_flag, low_spending, churned])
+
+columns = ['Customer ID', 'Total Spend', 'Weeks Since Last Purchase', 'Amount of 0 Sell Weeks','Average Spending Per Month','Spending Trend',
+           'Total Abnormal Weeks', 'Q1 Amplitude', 'Q4 Amplitude', 'Net Fourier Difference',
+           'Net Fourier Difference From Average',
+           'TensorFlow Loss','TensorFlow Flag','Low Spending Flag','Churn State']
+
+at_risk_df = pd.DataFrame(data=data, columns=columns)
+
+# ========== DOWNLOAD TO .CSV FILE =================
+from google.colab import files
+at_risk_df.to_csv('synthetic_risk_data.csv', index=False)
+files.download('synthetic_risk_data.csv')
