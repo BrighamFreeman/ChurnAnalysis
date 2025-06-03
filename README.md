@@ -1,5 +1,5 @@
 # ChurnAnalysis
-This project contains all of the necessary libraries for the customer churn project. The dataset_creator file is used to create synthetic data, based on real uploaded customer data. The main.py file is used to generate predictions, utilizing the synthetic data as a base. 
+This project contains all of the necessary libraries for the customer churn project. The dataset_creator file is used to create synthetic data, based on real uploaded customer data. The main.py file is used to generate predictions, utilizing the synthetic data as a base. Training data from the dataset_creator or wgan_gp must be fed into the model. These datasets are what the classification model will learn from, and use to formulate its classifications. 
 
 To generate synthetic data, data must be fed into either the dataset_creator or wgan_gp file. There is a sample dataset provided. This can be uploaded into the dataset_creator or the wgan_gp to create more synthetic data to create a training set for the main churn analysis classification model. 
 
