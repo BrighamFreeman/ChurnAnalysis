@@ -237,10 +237,12 @@ def build_discriminator(time_steps, num_features):
     ])
     return model
 
+#set a segment to 0 is between (-0.5,0.5)
 def set_zero(x):
     x[(x < 0.5) & (x > -0.5)] = 0  # Vectorized operation
     return x
 
+#compile generator and critic
 def build_gan(data):
   # Set Parameters
   time_steps = 13
